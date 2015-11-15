@@ -1,0 +1,12 @@
+{
+  "name": "data-import",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "start" : "node dataImport"
+  },
+  "dependencies" : {
+    "csv-parse" : "1.*",
+    "underscore" : "1.*"
+  }
+}
