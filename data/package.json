@@ -3,10 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start" : "node dataImport"
+    "start": "node dataImport"
   },
-  "dependencies" : {
-    "csv-parse" : "1.*",
-    "underscore" : "1.*"
+  "dependencies": {
+    "csv-parse": "^1.2.4",
+    "underscore": "1.*"
   }
 }

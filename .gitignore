@@ -3,7 +3,9 @@ data/raw/JoshuaProject/**
 data/raw/NASA/**
 !data/raw/NASA/nasaPopModified.csv
 
-/data/node_modules
+/node_modules
 .idea
 
 geo.json
+
+package-lock.json
