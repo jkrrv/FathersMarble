@@ -3,6 +3,7 @@
 'use strict';
 
 require.config({
+    // baseUrl : 'node_modules/cesium/Build/Cesium',
     baseUrl : 'node_modules/cesium/Source', // KURTZ switch to minified build eventually.
     waitSeconds : 60
 });
@@ -494,12 +495,7 @@ requirejs(['Cesium'], function(Cesium) {
 
     viewer.dataSources.add(dataSource);
 
-    v=viewer;
-    
-    
-// KURTZ restore:
-//     viewer.creditDisplay.add(new Cesium.Credit('Joshua Project', 'assets/jp_logo_color.png', 'http://joshuaproject.org'));
-
+    // Add credit footnote for Joshua Project
+    var credit = new Cesium.Credit('Joshua Project', 'assets/jp_logo_color.png', 'http://joshuaproject.net');
+    viewer.scene.frameState.creditDisplay.addDefaultCredit(credit)
 });
-
-var v;
