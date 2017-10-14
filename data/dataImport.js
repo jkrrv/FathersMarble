@@ -8,8 +8,9 @@ var fs = require('fs');
 var _ = require('underscore');
 
 var grid = {};
-var peoples = {};
 var nasaLoaded = false;
+
+var populationMargin = 1E7;
 
 
 function GridPoint() {
@@ -27,9 +28,9 @@ GridPoint.prototype.getPopulation = function() {
 function Village(csvRow) {
     this.peopleId = parseInt(csvRow.PEOPLEID3);
     this.jPScale = parseFloat(csvRow.JPSCALE);
-    this.pctEvangel = parseFloat(csvRow.PERCENTEVANGELICAL);
-    this.pctAdherant = parseFloat(csvRow.PERCENTADHERENTS);
-    this.populationUnassigned = parseInt(csvRow.POPULATION);
+    this.pctEvangel = parseFloat(csvRow.PERCENTEVANGELICAL)*.01 || 0;
+    this.pctAdherant = parseFloat(csvRow.PERCENTADHERENTS)*.01 || 0;
+    this.populationUnassigned = parseInt(csvRow.POPULATION) || 0;
     this.populationTotal = this.populationUnassigned;
     this.lat = parseFloat(csvRow.LATITUDE);
     this.lng = parseFloat(csvRow.LONGITUDE);
@@ -46,30 +47,36 @@ Village.prototype.assignToGrid = function() {
     var lat = this.lat,
         lng = this.lng;
 
-    var remaining = this.assignToGridPoint(Math.round(lat/2) * 2, Math.round(lng/2) * 2);
+    var remaining = this.assignToPile(Math.round(lat/2) * 2, Math.round(lng/2) * 2);
 
     if (remaining <= 0) {
         return;
     }
     if(_.find(this.listPeripheralZones(lat, lng, 10), function(zone, i) {
-            if (this.assignToGridPoint(zone.lat, zone.lng) == 0) {
+            if (this.assignToPile(zone.lat, zone.lng) == 0) {
                 return true;
             }
         }, this) != undefined) return;
 
     if(_.find(this.listPeripheralZones(lat, lng, 30), function(zone, i) {
-            if (this.assignToGridPoint(zone.lat, zone.lng) == 0) {
+            if (this.assignToPile(zone.lat, zone.lng) == 0) {
                 return true;
             }
         }, this) != undefined) return;
 
-    if(_.find(this.listPeripheralZones(lat, lng, 180), function(zone, i) {
-            if (this.assignToGridPoint(zone.lat, zone.lng) == 0) {
+    if(_.find(this.listPeripheralZones(lat, lng, 90), function(zone) {
+            if (this.assignToPile(zone.lat, zone.lng) == 0) {
                 return true;
             }
         }, this) != undefined) return;
 
-    console.log("not fully assigned. ", this.peopleIdStr, this.populationUnassigned, "unassigned of", this.populationTotal);
+    if(_.find(this.listPeripheralZones(lat, lng, 180), function(zone) {
+            if (this.assignToPile(zone.lat, zone.lng) == 0) {
+                return true;
+            }
+        }, this) != undefined) return;
+
+    console.log("-> people group ", this.peopleIdStr, " not fully assigned. ", this.populationUnassigned, "unassigned of", this.populationTotal);
 
 };
 Village.prototype.listPeripheralZones = function(lat, lng, degrees) {
@@ -92,7 +99,7 @@ Village.prototype.listPeripheralZones = function(lat, lng, degrees) {
 
     return zones;
 };
-Village.prototype.assignToGridPoint = function(lat, lng) {
+Village.prototype.assignToPile = function(lat, lng) {
     if (this.populationUnassigned <= 0)
         return 0;
 
@@ -117,9 +124,26 @@ Village.prototype.assignToGridPoint = function(lat, lng) {
     grid[lat][lng].emptyPop = grid[lat][lng].emptyPop - assignable;
 
     if (typeof grid[lat][lng].peoples[this.peopleIdStr]  != 'undefined') {
-        grid[lat][lng].peoples[this.peopleIdStr] += assignable;
+    // Another country of this people group is already in this position.  Merge.  (Common among small countries, like SE Asia.)
+
+        var peopleObj = grid[lat][lng].peoples[this.peopleIdStr];
+
+        if (peopleObj.pop < assignable && peopleObj.jps != this.jPScale) {
+            peopleObj.jps = this.jPScale;
+        }
+
+        peopleObj.adh = (peopleObj.adh * peopleObj.pop + this.pctAdherant * assignable) / (peopleObj.pop + assignable);
+        peopleObj.evn = (peopleObj.evn * peopleObj.pop + this.pctEvangel * assignable) / (peopleObj.pop + assignable);
+
+        peopleObj.pop += assignable;
+
     } else {
-        grid[lat][lng].peoples[this.peopleIdStr] = assignable;
+        grid[lat][lng].peoples[this.peopleIdStr] = {
+            pop: assignable,
+            adh: this.pctAdherant,
+            evn: this.pctEvangel,
+            jps: this.jPScale
+        };
     }
 
     return this.populationUnassigned;
@@ -191,7 +215,7 @@ function sortAndFilterJP(data) {
 
     while (!nasaLoaded) {}
 
-    var populationScalar = (populationSum + 1E6)/nasaLoaded;
+    var populationScalar = (populationSum + populationMargin)/nasaLoaded;
 
     _.each(grid, function(gridR) {
         _.each(gridR, function(gridC) {
@@ -211,12 +235,12 @@ function sortAndFilterJP(data) {
         gridSubset = [];
     _.each(grid, function(row, lat) {
         _.each(row, function(cell, lng) {
-            if (lng != "Lat") {
+            if (lng !== "Lat") {
                 popHolesRemaining += cell.emptyPop;
                 if (!_.isEmpty(cell.peoples)) {
                     gridSubset.push({
-                        lat: lat,
-                        lng: lng,
+                        lat: parseInt(lat),
+                        lng: parseInt(lng),
                         peoples: cell.peoples
                     });
                 }

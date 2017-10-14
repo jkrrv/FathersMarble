@@ -1,24 +1,97 @@
-/**
- * Created by James on 11/13/2015.
- */
-
-
+/*global require*/
+/*eslint-env node*/
+'use strict';
 
 require.config({
-    baseUrl : 'libs',
+    baseUrl : 'node_modules/cesium/Source', // KURTZ switch to minified build eventually.
     waitSeconds : 60
 });
 
 
-requirejs(["cesium/Cesium"], function(Cesium) {
+requirejs(['Cesium'], function(Cesium) {
 
-    var h= 0;
+    /**
+     * The Pile class represents the collection of all peoples in a given place.
+     *
+     * @param geoPeoples
+     * @constructor
+     */
+    var Pile = function(geoPeoples) {
+        this.peoples = geoPeoples;
+    };
+
+    /**
+     * Constants to specify the means by which the height should be calculated.
+     */
+    Pile.heightFormat = {
+
+        /** JPS: Joshua Project Status : The classifications assigned by The Joshua Project. Reached, Minimally/Superficially Reached, Partially/Significantly Reached **/
+        JPS: 1,
+
+        /** PROFESS: Professed faith : A classification based on reported profession.  Evangelical, Christian, Non-Christian */
+        PROFESS: 2
+    };
+
+    /**
+     * Calculate the heights of bars for a given Pile.
+     *
+     * @param format
+     * @returns {{r: number, y: number, g: number, sum: number}}
+     */
+    Pile.prototype.calcHeights = function(format) {
+        var out = {
+            r: 0,
+            y: 0,
+            g: 0,
+            sum: 0
+        };
+
+        var index, people;
+        switch(format) {
+            case Pile.heightFormat.JPS : {
+                for(index in this.peoples) {
+                    if (this.peoples.hasOwnProperty(index)) {
+                        people = this.peoples[index];
+
+                        if (people.jps < 2) {
+                            out.r += people.pop;
+                        } else if (people.jps < 3) {
+                            out.y += people.pop;
+                        } else {
+                            out.g += people.pop;
+                        }
+                    }
+                }
+            } break;
+            case Pile.heightFormat.PROFESS : {
+                for(index in this.peoples) {
+                    if (this.peoples.hasOwnProperty(index)) {
+                        people = this.peoples[index];
+                        out.g += (people.evn * people.pop);
+                        out.y += Math.max((people.adh - people.evn) * people.pop, 0);
+                        out.r += (1 - people.adh) * people.pop;
+
+                        if (people.jps < 2) {
+                            out.r += people.pop;
+                        } else if (people.jps < 3) {
+                            out.y += people.pop;
+                        } else {
+                            out.g += people.pop;
+                        }
+                    }
+                }
+            } break;
+        }
+        out.sum = out.r + out.y + out.g;
+        return out;
+    };
 
 
 
     /**
-     * This class is an example of a custom DataSource.  It loads JSON data as
-     * defined by Google's WebGL Globe, https://github.com/dataarts/webgl-globe.
+     * This class is very closely modeled after the Cesium Data Source example of the same name.  It represents the
+     * collection of data to Cesium.
+     *
      * @alias WebGLGlobeDataSource
      * @constructor
      *
@@ -30,7 +103,7 @@ requirejs(["cesium/Cesium"], function(Cesium) {
      * dataSource.loadUrl('sample.json');
      * viewer.dataSources.add(dataSource);
      */
-    var WebGLGlobeDataSource = function(name) {
+    function WebGLGlobeDataSource(name) {
         //All public configuration is defined as ES5 properties
         //These are just the "private" variables and their defaults.
         this._name = name;
@@ -41,15 +114,16 @@ requirejs(["cesium/Cesium"], function(Cesium) {
         this._entityCollection = new Cesium.EntityCollection();
         this._seriesNames = [];
         this._seriesToDisplay = undefined;
-        this._heightScale = 10000000;
-    };
+        this._heightScale = 2;
+        this._widthScale = 20000;
+        this._entityCluster = new Cesium.EntityCluster();
+    }
 
     Object.defineProperties(WebGLGlobeDataSource.prototype, {
         //The below properties must be implemented by all DataSource instances
-
         /**
          * Gets a human-readable name for this instance.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {String}
          */
         name : {
@@ -59,7 +133,7 @@ requirejs(["cesium/Cesium"], function(Cesium) {
         },
         /**
          * Since WebGL Globe JSON is not time-dynamic, this property is always undefined.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {DataSourceClock}
          */
         clock : {
@@ -118,9 +192,7 @@ requirejs(["cesium/Cesium"], function(Cesium) {
                 return this._loading;
             }
         },
-
         //These properties are specific to this DataSource.
-
         /**
          * Gets the array of series names.
          * @memberof WebGLGlobeDataSource.prototype
@@ -144,7 +216,6 @@ requirejs(["cesium/Cesium"], function(Cesium) {
             },
             set : function(value) {
                 this._seriesToDisplay = value;
-
                 //Iterate over all entities and set their show property
                 //to true only if they are part of the current series.
                 var collection = this._entityCollection;
@@ -172,6 +243,35 @@ requirejs(["cesium/Cesium"], function(Cesium) {
                 }
                 this._heightScale = value;
             }
+        },
+        /**
+         * Gets whether or not this data source should be displayed.
+         * @memberof WebGLGlobeDataSource.prototype
+         * @type {Boolean}
+         */
+        show : {
+            get : function() {
+                return this._entityCollection;
+            },
+            set : function(value) {
+                this._entityCollection = value;
+            }
+        },
+        /**
+         * Gets or sets the clustering options for this data source. This object can be shared between multiple data sources.
+         * @memberof WebGLGlobeDataSource.prototype
+         * @type {EntityCluster}
+         */
+        clustering : {
+            get : function() {
+                return this._entityCluster;
+            },
+            set : function(value) {
+                if (!Cesium.defined(value)) {
+                    throw new Cesium.DeveloperError('value must be defined.');
+                }
+                this._entityCluster = value;
+            }
         }
     });
 
@@ -184,21 +284,18 @@ requirejs(["cesium/Cesium"], function(Cesium) {
         if (!Cesium.defined(url)) {
             throw new Cesium.DeveloperError('url is required.');
         }
-
         //Create a name based on the url
         var name = Cesium.getFilenameFromUri(url);
-
         //Set the name if it is different than the current name.
         if (this._name !== name) {
             this._name = name;
             this._changed.raiseEvent(this);
         }
-
         //Use 'when' to load the URL into a json object
         //and then process is with the `load` function.
         var that = this;
         return Cesium.when(Cesium.loadJson(url), function(json) {
-            return that.load(json, url);
+            return that.load(json);
         }).otherwise(function(error) {
             //Otherwise will catch any errors or exceptions that occur
             //during the promise processing. When this happens,
@@ -225,7 +322,9 @@ requirejs(["cesium/Cesium"], function(Cesium) {
         this._seriesNames.length = 0;
         this._seriesToDisplay = undefined;
 
-        var heightScale = this.heightScale;
+        var heightScale = this._heightScale;
+        var widthScale = parseInt(this._widthScale);
+        var slices = 4;
         var entities = this._entityCollection;
 
         //It's a good idea to suspend events when making changes to a
@@ -235,164 +334,95 @@ requirejs(["cesium/Cesium"], function(Cesium) {
         entities.suspendEvents();
         entities.removeAll();
 
-        //WebGL Globe JSON is an array of series, where each series itself is an
-        //array of two items, the first containing the series name and the second
-        //being an array of repeating latitude, longitude, height values.
-        //
-        //Here's a more visual example.
-        //[["series1",[latitude, longitude, height, ... ]
-        // ["series2",[latitude, longitude, height, ... ]]
+        var h=0; // count the number of cylinders generated.
 
-        // Loop over each series
+        // Loop over each geographic point
         for (var x = 0; x < data.length; x++) {
-            var series = data[x];
-            var seriesName = series[0];
-            var coordinates = series[1];
 
-            //Add the name of the series to our list of possible values.
-            this._seriesNames.push(seriesName);
+            var geo = data[x];
+            var latitude = parseInt(geo.lat);
+            var longitude = parseInt(geo.lng);
 
-            //Make the first series the visible one by default
-            var show = x === 0;
-            if (show) {
-                this._seriesToDisplay = seriesName;
+            var peoples = new Pile(geo.peoples);
+
+            // TODO make calculation selection a dynamic feature
+            // var heights = peoples.calcHeights(Peoples.heightFormat.JPS);
+            var heights = peoples.calcHeights(Pile.heightFormat.PROFESS);
+
+            // TODO break this into more functions so things are more readily callable when user options are made available.
+
+            // Calculate heights for each colored bar
+            heights.g = heights.g >> heightScale;
+            heights.y = heights.y >> heightScale;
+            heights.r = heights.r >> heightScale;
+
+
+            // Create Green Bar
+            if (heights.g > 1) {
+                entities.add(new Cesium.Entity({
+                    id : "g" + ' index ' + x.toString(),
+                    show : true,
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g/2),
+                    cylinder: {
+                        length: heights.g,
+                        topRadius: widthScale,
+                        slices: slices,
+                        bottomRadius: widthScale,
+                        material: Cesium.Color.GREEN.withAlpha(.4)
+                    },
+                    seriesName : "g"
+                }));
+
+                h++;
             }
 
-            //Now loop over each coordinate in the series and create
-            // our entities from the data.
-            for (var i = 0; i < coordinates.length; i += 3) {
-                var latitude = coordinates[i];
-                var longitude = coordinates[i + 1];
-                var height = coordinates[i + 2];
-
-                //Ignore lines of zero height.
-                //if(height === 0) {
-                //    continue;
-                //}
-                //window.console.log(height);
-
-                if (height < 0.01) {
-                    continue;
-                }
-
-
-                c = Cesium;
-                v = viewer;
-
-                //if (i > 5000) {
-                //    continue;
-                //}
-
-                var color = Cesium.Color.fromHsl((0.6 - (height * 0.5)), 1.0, 0.5);
-                color.alpha = 0.4;
-                var surfacePosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, 0);
-                var greenMidPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, height * (heightScale / 2));
-                var yellowMidPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, height * (heightScale / 2) * 3);
-                var redMidPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, height * (heightScale / 2) * 5);
-                var topPosition = Cesium.Cartesian3.fromDegrees(longitude, latitude, height * heightScale * 3 + 10);
-
-                //The polyline instance itself needs to be on an entity.
-                //entities.add({
-                //    id : seriesName + ' index ' + i.toString(),
-                //    show : show,
-                //    position: surfacePosition,
-                //    cylinder : {
-                //        length : height * heightScale,
-                //        topRadius : height * 100000,
-                //        slices: 4,
-                //        bottomRadius : height * 100000,
-                //        material : Cesium.Color.GREEN.withAlpha(.4)
-                //    },
-                //    seriesName : seriesName //Custom property to indicate series name
-                //});
-                //
-                //entities.add({
-                //    id : seriesName + ' d ' + i.toString(),
-                //    show : show,
-                //    position: heightPosition,
-                //    cylinder : {
-                //        length : height * heightScale,
-                //        topRadius : height * 100000,
-                //        slices: 4,
-                //        bottomRadius : height * 100000,
-                //        material : Cesium.Color.RED.withAlpha(.4)
-                //    },
-                //    seriesName : seriesName //Custom property to indicate series name
-                //});
-
-
-                entities.add({
-                    id : seriesName + ' g ' + i.toString(),
-                    show : show,
-                    position: greenMidPosition,
-                    cylinder : {
-                        length : height * heightScale,
-                        topRadius : height * 100000,
-                        slices: 4,
-                        bottomRadius : height * 100000,
-                        material : Cesium.Color.GREEN.withAlpha(.4)
-                    }
-                    //seriesName : seriesName //Custom property to indicate series name
-                });
-
-                entities.add({
-                    id : seriesName + ' y ' + i.toString(),
-                    show : show,
-                    position: yellowMidPosition,
-                    cylinder : {
-                        length : height * heightScale,
-                        topRadius : height * 100000,
-                        slices: 4,
-                        bottomRadius : height * 100000,
-                        material : Cesium.Color.YELLOW.withAlpha(.4)
-                    }
-                    //seriesName : seriesName //Custom property to indicate series name
-                });
-
-                entities.add({
-                    id : seriesName + ' r ' + i.toString(),
-                    show : show,
-                    position: redMidPosition,
-                    cylinder : {
-                        length : height * heightScale,
-                        topRadius : height * 100000,
-                        slices: 4,
-                        bottomRadius : height * 100000,
-                        material : Cesium.Color.RED.withAlpha(.4)
-                    }
-                    //seriesName : seriesName //Custom property to indicate series name
-                });
-
-                entities.add({
-                    id : seriesName + ' s ' + i.toString(),
-                    show : show,
-                    position: surfacePosition,
-                    cylinder : {
-                        length : height * heightScale * 6.01,
-                        topRadius : height * 100000 * 4.01,
-                        slices: 4,
-                        bottomRadius : height * 100000 *1.01,
-                        //material : Cesium.Color.WHITE.withAlpha(.4)
-                        material : Cesium.Color.TRANSPARENT.withAlpha(0.01)
-                        //material : Cesium.Color.BLUE
+            // Create Yellow bar
+            if (heights.y > 1) {
+                entities.add(new Cesium.Entity({
+                    id : "y" + ' index ' + x.toString(),
+                    show : true,
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + (heights.y/2)),
+                    cylinder: {
+                        length: heights.y,
+                        topRadius: widthScale,
+                        slices: slices,
+                        bottomRadius: widthScale,
+                        material: Cesium.Color.YELLOW.withAlpha(.4)
                     },
-                    seriesName : seriesName, //Custom property to indicate series name
-                    description: function() {return "hello!"}
-                });
+                    seriesName : "y"
+                }));
 
-                h++
+                h++;
+            }
 
+            // Create Red bar
+            if (heights.r > 1) {
+                entities.add(new Cesium.Entity({
+                    id : "r" + ' index ' + x.toString(),
+                    show : true,
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.y + (heights.r/2)),
+                    cylinder: {
+                        length: heights.r,
+                        topRadius: widthScale,
+                        slices: slices,
+                        bottomRadius: widthScale,
+                        material: Cesium.Color.RED.withAlpha(.4)
+                    },
+                    seriesName : "r"
+                }));
 
+                h++;
             }
         }
 
-        window.console.log("h", h);
+        window.console.log("cylinders:", h);
 
-        //Once all data is processed, call resumeEvents and raise the changed event.
+        // Once all data is processed, call resumeEvents and raise the changed event so the display can update.
         entities.resumeEvents();
         this._changed.raiseEvent(this);
         this._setLoading(false);
     };
+
 
     WebGLGlobeDataSource.prototype._setLoading = function(isLoading) {
         if (this._isLoading !== isLoading) {
@@ -402,10 +432,9 @@ requirejs(["cesium/Cesium"], function(Cesium) {
     };
 
 
-//Now that we've defined our own DataSource, we can use it to load
-//any JSON data formatted for WebGL Globe.
+    // Instantiate the Data Source and load the data.
     var dataSource = new WebGLGlobeDataSource();
-    dataSource.loadUrl('data/data.json').then(function() {
+    dataSource.loadUrl('data/geo.json').then(function() {
 
         //After the initial load, create buttons to let the user switch among series.
         function createSeriesSetter(seriesName) {
@@ -415,38 +444,62 @@ requirejs(["cesium/Cesium"], function(Cesium) {
         }
     });
 
+    Cesium.BingMapsApi.defaultKey =  'AjUK0-UaaYujmmlMT2iXlFADNDnttZM4F5ADqiCfdP-y_JojoP8089gU-nzdGhNe';
+
 //Create a Viewer instances and add the DataSource.
     var viewer = new Cesium.Viewer('cesiumContainer', {
         animation : false,
         timeline : false,
         geocoder : false,
-        //sceneModePicker : false,
         navigationInstructionsInitiallyVisible: false,
-        imageryProvider : new Cesium.TileMapServiceImageryProvider({
-            //url : 'libs/Cesium/Assets/Textures/NaturalEarthII'
-            url : '//cesiumjs.org/tilesets/imagery/naturalearthii',
-            maximumLevel : 5
+        imageryProvider: new Cesium.BingMapsImageryProvider({
+            url : '//dev.virtualearth.net'
         }),
         skyAtmosphere: false,
         skyBox: false,
-        baseLayerPicker : false
-        //terrainProvider: new EllipsoidTerrainProvider()
+        baseLayerPicker : false,
+        infoBox: true,
+        scene: {
+            globe: {
+                enableLighting: true
+            }
+        }
     });
+
+    viewer.infoBox.frame.sandbox = "allow-same-origin allow-top-navigation allow-pointer-lock allow-popups allow-forms allow-scripts";
 
 
     viewer.scene.globe.enableLighting = true;
 
     var imageryLayers = viewer.imageryLayers;
-    if (imageryLayers.length > 0) {
+    // if (imageryLayers.length > 0) {
+    //     var layer = imageryLayers.get(0);
+    //     layer.saturation = 0;
+    //     layer.contrast = 2;
+    //     layer.brightness = 0.8;
+    // }
+    if (imageryLayers.length > 0) { // bing
         var layer = imageryLayers.get(0);
         layer.saturation = 0;
-        layer.contrast = 2;
+        layer.contrast = 1.8;
         layer.brightness = 0.8;
     }
 
+    // if (imageryLayers.length > 0) { // black marble
+    //     var layer = imageryLayers.get(0);
+    //     layer.saturation = 0;
+    //     // layer.contrast = 1.8;
+    //     // layer.brightness = 0.8;
+    // }
+
     viewer.dataSources.add(dataSource);
 
-
-
+    v=viewer;
+    
+    
+// KURTZ restore:
+//     viewer.creditDisplay.add(new Cesium.Credit('Joshua Project', 'assets/jp_logo_color.png', 'http://joshuaproject.org'));
 
 });
+
+var v;
