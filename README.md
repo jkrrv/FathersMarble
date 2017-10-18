@@ -1,10 +1,10 @@
-# The Father's Marble
+# Father's Marble
 
-The Father's Marble is an attempt to show the status of the Good News of Jesus Christ throughout the earth.
+Father's Marble is an attempt to show the status of the Good News throughout the earth.
 
 Here's a screenshot of the view from the North Pole, with the Americas toward the top of the picture:   
 
-![View of The Father's Marble from the North Pole.  The Americas are toward the top of the image.](documentation/NorthPole.png)
+![View of Father's Marble from the North Pole.  The Americas are toward the top of the image.](documentation/NorthPole.png)
 
 ## Data Sources
 
@@ -23,15 +23,22 @@ Over different versions of this project, the imagery used on the globe has come 
  
 The graphics tool used here is [Cesium](http://cesiumjs.org), which is a really awesome mapping tool. 
 
+## License
+
+Wanna use this or create a derivative work based on it?  That's great!  Just follow the terms of our license, which is 
+the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/). 
+
+Questions?  Ask [the contributors](https://github.com/jkrrv/FathersMarble/graphs/contributors). 
+
 ## Terminology
 
 For the purposes of this application, the term __Village__ does *not* refer to something like a small town, but rather 
-specifically refers to __a people group in a particular location__.  For instance, 
+specifically refers to _a people group in a particular location_.  For instance, 
 [the Glaro-Twabo people](http://joshuaproject.net/people_groups/11907) are in two locations, and thus have two 
 "Villages".  Villages can be of drastically different sizes, both in terms of population, and in terms of geographic 
 area covered. 
 
-A __Pile__ is a collection of peoples who are designated into one statistical point.  One Pile may contain several 
+A __Pile__ is _a collection of peoples who are designated into one statistical point_.  One Pile may contain several 
 Villages, and many Villages are spread between several piles. 
 
 ## How It Works
@@ -51,11 +58,12 @@ places with large Villages or complex borders.
 
 ## Data Issues & Usefulness
 
-There are some known issues in how the data is presented, some of which won't be resolved.  Our goal is to provide a 
-tool that is useful for you and your family and your church to see the regions of the world where we particularly need
+There are some known issues in how the data is presented, most of which will never be resolved.  Our goal is to provide 
+a tool that is useful for you and your family and your church to see the regions of the world where we particularly need
 to "pray earnestly to the Lord of the harvest to send out laborers into his harvest." (Matthew 9:38)  
 
-Please don't use this for anything more than that.  It won't be able to deliver. 
+Please don't use this for anything more than that.  Do not use this as the sole tool for choosing a travel destination.  
+This tool is useful, but not for everything.  
 
 In addition to potential misuse, there are other more technical issues with this visualization, as described below. 
 
@@ -88,8 +96,9 @@ if it's already a known issue, and create a new issue report if it's not already
 If you want to work with the codebase, it's kinda expected that you already have some experience working with Javascript
 applications.  (If you're new to Javascript, this is not the place to start.)  
 
-There are two applications in this set: the basic application, rooted in the base directory; and the data processing application rooted in `/data`, which parses the datasets and 
-converts them to useful JSON files, which are then passed to the client for display.
+There are two applications in this set: the front-end application, rooted in the base directory; and the data processing 
+application rooted in `/data`, which parses the datasets and converts them to useful JSON files, which are then passed 
+to the front-end application for display.
 
 ### Data Processing Application
 
