@@ -377,7 +377,7 @@ requirejs(['Cesium'], function(Cesium) {
                         topRadius: parseInt(widthScale),
                         slices: slices,
                         bottomRadius: parseInt(widthScale),
-                        material: Cesium.Color.GREEN.withAlpha(.4)
+                        material: Cesium.Color.GREEN.withAlpha(.6)
                     },
                     seriesName : "g"
                 }));
@@ -396,7 +396,7 @@ requirejs(['Cesium'], function(Cesium) {
                         topRadius: parseInt(widthScale),
                         slices: slices,
                         bottomRadius: parseInt(widthScale),
-                        material: Cesium.Color.GREENYELLOW.withAlpha(.4)
+                        material: Cesium.Color.GREENYELLOW.withAlpha(.6)
                     },
                     seriesName : "s"
                 }));
@@ -415,7 +415,7 @@ requirejs(['Cesium'], function(Cesium) {
                         topRadius: parseInt(widthScale),
                         slices: slices,
                         bottomRadius: parseInt(widthScale),
-                        material: Cesium.Color.YELLOW.withAlpha(.4)
+                        material: Cesium.Color.YELLOW.withAlpha(.6)
                     },
                     seriesName : "y"
                 }));
@@ -434,7 +434,7 @@ requirejs(['Cesium'], function(Cesium) {
                         topRadius: parseInt(widthScale),
                         slices: slices,
                         bottomRadius: parseInt(widthScale),
-                        material: Cesium.Color.ORANGE.withAlpha(.4)
+                        material: Cesium.Color.ORANGE.withAlpha(.6)
                     },
                     seriesName : "o"
                 }));
@@ -453,7 +453,7 @@ requirejs(['Cesium'], function(Cesium) {
                         topRadius: parseInt(widthScale),
                         slices: slices,
                         bottomRadius: parseInt(widthScale),
-                        material: Cesium.Color.RED.withAlpha(.4)
+                        material: Cesium.Color.RED.withAlpha(.6)
                     },
                     seriesName : "r"
                 }));
