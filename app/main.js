@@ -42,7 +42,9 @@ requirejs(['Cesium'], function(Cesium) {
     Pile.prototype.calcHeights = function(format) {
         var out = {
             r: 0,
+            o: 0,
             y: 0,
+            s: 0,
             g: 0,
             sum: 0
         };
@@ -57,7 +59,11 @@ requirejs(['Cesium'], function(Cesium) {
                         if (people.jps < 2) {
                             out.r += people.pop;
                         } else if (people.jps < 3) {
+                            out.o += people.pop;
+                        } else if (people.jps < 4) {
                             out.y += people.pop;
+                        } else if (people.jps < 5) {
+                            out.s += people.pop;
                         } else {
                             out.g += people.pop;
                         }
@@ -208,7 +214,7 @@ requirejs(['Cesium'], function(Cesium) {
          * Gets or sets the name of the series to display.  WebGL JSON is designed
          * so that only one series is viewed at a time.  Valid values are defined
          * in the seriesNames property.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {String}
          */
         seriesToDisplay : {
@@ -347,14 +353,16 @@ requirejs(['Cesium'], function(Cesium) {
             var peoples = new Pile(geo.peoples);
 
             // TODO make calculation selection a dynamic feature
-            // var heights = peoples.calcHeights(Peoples.heightFormat.JPS);
-            var heights = peoples.calcHeights(Pile.heightFormat.PROFESS);
+            var heights = peoples.calcHeights(Pile.heightFormat.JPS);
+            // var heights = peoples.calcHeights(Pile.heightFormat.PROFESS);
 
             // TODO break this into more functions so things are more readily callable when user options are made available.
 
             // Calculate heights for each colored bar
             heights.g = heights.g >> heightScale;
+            heights.s = heights.s >> heightScale;
             heights.y = heights.y >> heightScale;
+            heights.o = heights.o >> heightScale;
             heights.r = heights.r >> heightScale;
 
 
@@ -366,12 +374,31 @@ requirejs(['Cesium'], function(Cesium) {
                     position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g/2),
                     cylinder: {
                         length: heights.g,
-                        topRadius: widthScale,
+                        topRadius: parseInt(widthScale),
                         slices: slices,
-                        bottomRadius: widthScale,
+                        bottomRadius: parseInt(widthScale),
                         material: Cesium.Color.GREEN.withAlpha(.4)
                     },
                     seriesName : "g"
+                }));
+
+                h++;
+            }
+
+            // Create "SpringGreeen" bar
+            if (heights.s > 1) {
+                entities.add(new Cesium.Entity({
+                    id : "s" + ' index ' + x.toString(),
+                    show : true,
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + (heights.s/2)),
+                    cylinder: {
+                        length: heights.s,
+                        topRadius: parseInt(widthScale),
+                        slices: slices,
+                        bottomRadius: parseInt(widthScale),
+                        material: Cesium.Color.GREENYELLOW.withAlpha(.4)
+                    },
+                    seriesName : "s"
                 }));
 
                 h++;
@@ -382,15 +409,34 @@ requirejs(['Cesium'], function(Cesium) {
                 entities.add(new Cesium.Entity({
                     id : "y" + ' index ' + x.toString(),
                     show : true,
-                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + (heights.y/2)),
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.s + (heights.y/2)),
                     cylinder: {
                         length: heights.y,
-                        topRadius: widthScale,
+                        topRadius: parseInt(widthScale),
                         slices: slices,
-                        bottomRadius: widthScale,
+                        bottomRadius: parseInt(widthScale),
                         material: Cesium.Color.YELLOW.withAlpha(.4)
                     },
                     seriesName : "y"
+                }));
+
+                h++;
+            }
+
+            // Create Orange bar
+            if (heights.o > 1) {
+                entities.add(new Cesium.Entity({
+                    id : "o" + ' index ' + x.toString(),
+                    show : true,
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.s + heights.y + (heights.o/2)),
+                    cylinder: {
+                        length: heights.o,
+                        topRadius: parseInt(widthScale),
+                        slices: slices,
+                        bottomRadius: parseInt(widthScale),
+                        material: Cesium.Color.ORANGE.withAlpha(.4)
+                    },
+                    seriesName : "o"
                 }));
 
                 h++;
@@ -401,12 +447,12 @@ requirejs(['Cesium'], function(Cesium) {
                 entities.add(new Cesium.Entity({
                     id : "r" + ' index ' + x.toString(),
                     show : true,
-                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.y + (heights.r/2)),
+                    position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.s + heights.y + heights.o + (heights.r/2)),
                     cylinder: {
                         length: heights.r,
-                        topRadius: widthScale,
+                        topRadius: parseInt(widthScale),
                         slices: slices,
-                        bottomRadius: widthScale,
+                        bottomRadius: parseInt(widthScale),
                         material: Cesium.Color.RED.withAlpha(.4)
                     },
                     seriesName : "r"
@@ -437,12 +483,8 @@ requirejs(['Cesium'], function(Cesium) {
     var dataSource = new WebGLGlobeDataSource();
     dataSource.loadUrl('data/geo.json').then(function() {
 
-        //After the initial load, create buttons to let the user switch among series.
-        function createSeriesSetter(seriesName) {
-            return function() {
-                dataSource.seriesToDisplay = seriesName;
-            };
-        }
+        // TODO UI Option population
+
     });
 
     Cesium.BingMapsApi.defaultKey =  'AjUK0-UaaYujmmlMT2iXlFADNDnttZM4F5ADqiCfdP-y_JojoP8089gU-nzdGhNe';
@@ -493,7 +535,7 @@ requirejs(['Cesium'], function(Cesium) {
     //     // layer.brightness = 0.8;
     // }
 
-    viewer.dataSources.add(dataSource);
+    viewer.dataSources.add(dataSource).then(); // TODO use this to close the loading overlay
 
     // Add credit footnote for Joshua Project
     var credit = new Cesium.Credit('Joshua Project', 'assets/jp_logo_color.png', 'http://joshuaproject.net');

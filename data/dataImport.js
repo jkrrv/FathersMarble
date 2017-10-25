@@ -1,10 +1,8 @@
-/**
- * Created by James on 11/14/2015.
- */
 
-
+var parseSync = require('csv-parse/lib/sync');
 var parse = require('csv-parse');
 var fs = require('fs');
+var https = require('https');
 var _ = require('underscore');
 
 var grid = {};
@@ -25,15 +23,15 @@ GridPoint.prototype.getPopulation = function() {
 };
 
 
-function Village(csvRow) {
-    this.peopleId = parseInt(csvRow.PEOPLEID3);
-    this.jPScale = parseFloat(csvRow.JPSCALE);
-    this.pctEvangel = parseFloat(csvRow.PERCENTEVANGELICAL)*.01 || 0;
-    this.pctAdherant = parseFloat(csvRow.PERCENTADHERENTS)*.01 || 0;
-    this.populationUnassigned = parseInt(csvRow.POPULATION) || 0;
+function Village(csvObj) {
+    this.peopleId = parseInt(csvObj.PeopleID3);
+    this.jPScale = parseFloat(csvObj.JPScale);
+    this.pctEvangel = parseFloat(csvObj.PercentEvangelical)*.01 || 0;
+    this.pctAdherant = parseFloat(csvObj.PercentAdherents)*.01 || 0;
+    this.populationUnassigned = parseInt(csvObj.Population) || 0;
     this.populationTotal = this.populationUnassigned;
-    this.lat = parseFloat(csvRow.LATITUDE);
-    this.lng = parseFloat(csvRow.LONGITUDE);
+    this.lat = parseFloat(csvObj.Latitude);
+    this.lng = parseFloat(csvObj.Longitude);
 
 }
 Object.defineProperties(Village.prototype, {
@@ -150,68 +148,84 @@ Village.prototype.assignToPile = function(lat, lng) {
 };
 
 
+/* JOSHUA PROJECT DATA DOWNLOAD/UPDATE */
+/* Download new Joshua Project data if it doesn't exist or is just old. */
+if (!fs.existsSync('raw/JoshuaProject/AllPeoplesByCountryListing.csv') ||
+    ((new Date()) - fs.statSync('raw/JoshuaProject/AllPeoplesByCountryListing.csv').mtime) > (86400*7)) {
 
-
-/* JOSHUA PROJECT CSV PARSING */
-{
-    var csv = [];
-    var jpParser = parse({columns: true});
-    jpParser.on('readable', function () {
-        var record;
-        while (record = jpParser.read()) {
-            csv.push(record);
-        }
+    var file = fs.createWriteStream('raw/JoshuaProject/AllPeoplesByCountryListing.csv');
+    https.get("https://joshuaproject.net/resources/datasets/1", function(response) {
+        response.pipe(file);
+        response.on('end', function() {
+            parseNasaData();
+            parseJPData();
+        });
     });
-    jpParser.on('error', function (err) {
-        console.error(err.message);
-    });
-    jpParser.on('finish', function () {
-        sortAndFilterJP(csv);
-    });
-}
-
-{
-    var nasa = [];
-    var nasaParser = parse({columns: true});
-    nasaParser.on('readable', function () {
-        var record;
-        while (record = nasaParser.read()) {
-            nasa.push(record);
-        }
-    });
-    nasaParser.on('error', function (err) {
-        console.error(err.message);
-    });
-    nasaParser.on('finish', function () {
-        nasaGridify(nasa);
-    });
+} else {
+    parseNasaData();
+    parseJPData();
 }
 
 
-fs.createReadStream('raw/JoshuaProject/AllPeoplesByCountryListing.csv').pipe(jpParser);
-fs.createReadStream('raw/NASA/nasaPopModified.csv').pipe(nasaParser);
+function parseJPData() {
+    var mode = "init",
+        columnHeadings = [],
+        jpData = [];
+    fs.readFileSync('raw/JoshuaProject/AllPeoplesByCountryListing.csv').toString().split('\n').forEach(function (line) {
+        switch (mode) {
+            case "init":
+                if (line.indexOf(',') !== -1) {
+                    mode = "body";
+                    columnHeadings = parseSync(line, {})[0];
+                }
+                break;
+            case "body":
+                if (line.indexOf(',') === -1) {
+                    mode = "footer";
+                    break;
+                }
+                jpData.push(parseSync(line, {
+                    columns:columnHeadings,
+                    auto_parse: true
+                })[0]);
+                break;
+        }
+    });
+    sortAndFilterJP(jpData);
+}
 
+function parseNasaData() {
+    nasaGridify(
+        parseSync(fs.readFileSync('raw/NASA/nasaPopModified.csv').toString(), {
+            columns: true
+        })
+    );
+}
 
 
 /* JOSHUA PROJECT DATA FILTER AND SORT */
 
 function sortAndFilterJP(data) {
+
+    // Remove items that don't have sufficient population or location data.
     data = _.reject(data, function(row) {
-        return (isNaN(parseInt(row.POPULATION)) || isNaN(parseFloat(row.LATITUDE)) || isNaN(parseFloat(row.LONGITUDE)));
+        return (isNaN(row.Population) || isNaN(row.Latitude) || isNaN(row.Longitude));
     });
 
+    // Create Villages from the remaining objects
     var populationSum = 0;
     var villages = [];
     _.each(data, function (villageRow) {
         villages.push(new Village(villageRow));
     });
 
+    // Sort by populations, least to most.
     villages = _.sortBy(villages, function(v) {
         populationSum += v.populationTotal;
         return v.populationTotal;
     });
 
-    console.log("Parsed from Joshua Project CSV ", populationSum, " people in ", data.length, " Villages.");
+    console.log("Parsed from Joshua Project CSV: ", populationSum, " people in ", data.length, " Villages.");
 
     while (!nasaLoaded) {}
 
@@ -249,6 +263,8 @@ function sortAndFilterJP(data) {
     });
     console.log("Population holes remaining:",  popHolesRemaining);
 
+    fs.unlinkSync('geo.json');
+
     fs.writeFile("geo.json", JSON.stringify(gridSubset), function(err){
         if(err){
             console.log(err);
@@ -268,7 +284,7 @@ function nasaGridify(data) {
         grid[lat] = {};
 
         _.each(row, function(cell, long) {
-            if (long != "Lat") {
+            if (long !== "Lat") {
                 //long = parseInt(long);
                 var pop = parseInt(cell);
                 grid[lat][long] = {

@@ -2,24 +2,32 @@
 
 Father's Marble is an attempt to show the status of the Good News throughout the earth.
 
-Here's a screenshot of the view from the North Pole, with the Americas toward the top of the picture:   
+Here's a screenshot of the view looking down on the North Pole, with the Americas toward the top of the picture:   
 
 ![View of Father's Marble from the North Pole.  The Americas are toward the top of the image.](documentation/NorthPole.png)
 
+In this particular screenshot (and the default setting for the application), the colors correspond to the [Progress 
+Levels defined by Joshua Project](https://joshuaproject.net/global/progress).
+
 ## Data Sources
 
-Data regarding people groups and their beliefs come from [Joshua Project's public datasets and APIs](http://joshuaproject.net/resources/datasets). 
-The Joshua Project exists to "Bring Definition to the Unfinished Task."  
+Data regarding people groups and their beliefs come from [Joshua Project's public datasets and 
+APIs](http://joshuaproject.net/resources/datasets). The Joshua Project exists to "Bring Definition to the Unfinished 
+Task."  Joshua Project data is updated in this application roughly once every two weeks. 
 
 Data regarding general global population distributions comes from NASA's 
 [Gridded Population of the World, Version 3](http://sedac.ciesin.columbia.edu/data/set/gpw-v3-population-density) 
-provided through CIESIN and CIAT, and are scaled such that the total world population roughly matches Joshua Project data.  
+provided through CIESIN and CIAT, and are scaled such that the total world population roughly matches Joshua Project 
+data.  
 
 Over different versions of this project, the imagery used on the globe has come from a variety of different sources: 
 
- - NASA's Black Marble Imagery.  Original data courtesy NASA Earth Observatory and in the public domain.  
  - Bing Maps.  Licensed from Microsoft. 
  - Natural Earth II. Public Domain. 
+ - NASA's Black Marble Imagery.  Original data courtesy NASA Earth Observatory and in the public domain; this iteration 
+  is graciously hosted by AGI. 
+  
+The particular copyrights that apply to the imagery actively in-use are listed at the bottom left of the application. 
  
 The graphics tool used here is [Cesium](http://cesiumjs.org), which is a really awesome mapping tool. 
 
@@ -38,8 +46,9 @@ specifically refers to _a people group in a particular location_.  For instance,
 "Villages".  Villages can be of drastically different sizes, both in terms of population, and in terms of geographic 
 area covered. 
 
-A __Pile__ is _a collection of peoples who are designated into one statistical point_.  One Pile may contain several 
-Villages, and many Villages are spread between several piles. 
+A __Pile__ is _a collection of peoples who are designated into a geographical point_.  One Pile may contain several 
+Villages, and many Villages are spread between several piles.  Generally, one pile corresponds to one vertical 
+multi-colored stack.  Hence, "pile".
 
 ## How It Works
 
@@ -86,7 +95,8 @@ there will appear to be an unrealistically high number of Han Chinese listed in 
 ### Ambiguous Population Distribution Data
 
 While we have distribution information for the human race as a whole, there is no readily available data that addresses 
-the issue of which Piles should contain each Village, when the Village population is larger than that of the pile. 
+the issue of which Piles should contain each Village, when the Village population is larger than that of the closest 
+pile. 
 
 ## Contributing, Building and Other Participation
 
@@ -128,6 +138,8 @@ To __update__ the node dependencies, from the root directory of the repository, 
 
 	npm update
 	
-There is no build procedure for the application, as it is (for now, anyway) completely static.  Just put the files in a
-web server, and you'll have a working application. 
+<strike>There is no build procedure for the application, as it is (for now, anyway) completely static.  Just put the 
+files in a web server, and you'll have a working application. </strike>  
+To build this application, you need LESS, and probably should minify everything. Creating a simplified build procedure 
+is [issue #2](https://github.com/jkrrv/FathersMarble/issues/2). 
 
