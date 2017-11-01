@@ -331,7 +331,7 @@ requirejs(['Cesium'], function(Cesium) {
 
         var heightScale = this._heightScale;
         var widthScale = parseInt(this._widthScale);
-        var slices = 4;
+        var slices = 8;
         var entities = this._entityCollection;
 
         //It's a good idea to suspend events when making changes to a

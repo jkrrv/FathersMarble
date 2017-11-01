@@ -1,6 +1,5 @@
 
 var parseSync = require('csv-parse/lib/sync');
-var parse = require('csv-parse');
 var fs = require('fs');
 var https = require('https');
 var _ = require('underscore');
