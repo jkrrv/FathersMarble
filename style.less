@@ -1,0 +1,85 @@
+@import (inline) url(node_modules/cesium/Build/Cesium/Widgets/widgets.css);
+
+html {
+  height: 100%;
+}
+
+body {
+  background: #000;
+  color: #eee;
+  font-family: sans-serif;
+  font-size: 9pt;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.fullSize {
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  border: none;
+  width: 100%;
+  height: 100%;
+}
+
+#loadingOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  opacity: 0.9;
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+
+#loadingOverlay h1 {
+  text-align: center;
+  position: relative;
+  top: 50%;
+  color:#666;
+  margin-top: -0.5em;
+}
+
+#toolbar {
+  margin: 5px;
+  padding: 2px 5px;
+  position: absolute;
+}
+
+
+
+.cesium-viewer .cesium-widget-credits a {
+  width: 30px;
+  height: 30px;
+  display: inline-block;
+  overflow: hidden;
+
+  img {
+    height: 30px;
+  }
+
+  img[src*=jp_logo_color] {
+    height: 28px;
+    margin-left: 3px;
+    margin-top: 1px;
+  }
+}
+
+.cesium-viewer .cesium-widget-credits a[href="http://www.bing.com"] {
+  width: 25px;
+}
+
+.cesium-viewer-bottom .cesium-credit-textContainer {
+  opacity:.3;
+  transition:opacity .5s;
+  padding-left: .5em;
+}
+
+.cesium-viewer-bottom:hover .cesium-credit-textContainer {
+  opacity:.9;
+}
+
