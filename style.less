@@ -33,23 +33,29 @@ body {
   opacity: 0.9;
   width: 100%;
   height: 100%;
-  display: none;
+  background: rgba(0,0,0,.5);
+  transition: opacity 2s;
+  transition-delay:8s;
 }
 
 #loadingOverlay h1 {
   text-align: center;
   position: relative;
   top: 50%;
-  color:#666;
+  color:#aaa;
   margin-top: -0.5em;
 }
 
-#toolbar {
-  margin: 5px;
-  padding: 2px 5px;
+#messageBar {
   position: absolute;
-}
+  background: rgba(0,0,0,.5);
+  margin-right:150px;
+  padding:.5em;
 
+  & * {
+    margin: 0;
+  }
+}
 
 
 .cesium-viewer .cesium-widget-credits a {
@@ -83,3 +89,20 @@ body {
   opacity:.9;
 }
 
+
+/* Cesium Toolbar */
+.cesium-viewer-toolbar button.cesium-button {
+  margin: auto;
+  box-sizing: border-box;
+  display:inline-block;
+  width: 32px;
+  height: 32px;
+  border-radius: 0;
+  padding: 0;
+  vertical-align: middle;
+  z-index: 0;
+
+  &.cesium-fullscreenButton {
+    margin:3px;
+  }
+}

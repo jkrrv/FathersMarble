@@ -502,6 +502,7 @@ requirejs(['Cesium'], function(Cesium) {
         skyBox: false,
         baseLayerPicker : false,
         infoBox: true,
+        fullscreenButton: false,
         scene: {
             globe: {
                 enableLighting: true
@@ -511,8 +512,9 @@ requirejs(['Cesium'], function(Cesium) {
 
     viewer.infoBox.frame.sandbox = "allow-same-origin allow-top-navigation allow-pointer-lock allow-popups allow-forms allow-scripts";
 
-
     viewer.scene.globe.enableLighting = true;
+
+    new Cesium.FullscreenButton(viewer._toolbar);
 
     var imageryLayers = viewer.imageryLayers;
     // if (imageryLayers.length > 0) {
@@ -535,9 +537,16 @@ requirejs(['Cesium'], function(Cesium) {
     //     // layer.brightness = 0.8;
     // }
 
-    viewer.dataSources.add(dataSource).then(); // TODO use this to close the loading overlay
+    viewer.dataSources.add(dataSource).then(function() {
+        document.getElementById('loadingOverlay').style.opacity = '0';
+        setTimeout(function () {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }, 10000)
+    });
 
     // Add credit footnote for Joshua Project
-    var credit = new Cesium.Credit('Joshua Project', 'assets/jp_logo_color.png', 'http://joshuaproject.net');
-    viewer.scene.frameState.creditDisplay.addDefaultCredit(credit)
+    var jpCredit = new Cesium.Credit('Joshua Project', 'assets/jp_logo_color.png', 'https://joshuaproject.net'),
+        nasaCredit = new Cesium.Credit('NASA Socioeconomic Data and Applications Center (SEDAC)', 'assets/nasa-logo.svg', 'http://sedac.ciesin.columbia.edu/data/collection/gpw-v4');
+    viewer.scene.frameState.creditDisplay.addDefaultCredit(jpCredit);
+    viewer.scene.frameState.creditDisplay.addDefaultCredit(nasaCredit);
 });
