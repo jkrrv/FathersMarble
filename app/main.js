@@ -94,6 +94,24 @@ requirejs(['Cesium'], function(Cesium) {
     };
 
 
+    Pile.prototype.putDescription = function(whereToPutDescription, property) {
+        console.log(this.peoples);
+
+        var description = document.createDocumentFragment();
+
+
+        for (const peopleId in this.peoples) {
+            if (this.peoples.hasOwnProperty(peopleId)) {
+                var peopleDiv = document.createElement('div');
+                peopleDiv.innerHTML = "<h2>" + peopleId + "</h2>";
+                description.appendChild(peopleDiv);
+            }
+        }
+
+
+        whereToPutDescription.description = description.innerHTML;
+    };
+
 
     /**
      * This class is very closely modeled after the Cesium Data Source example of the same name.  It represents the
@@ -350,10 +368,10 @@ requirejs(['Cesium'], function(Cesium) {
             var latitude = parseInt(geo.lat);
             var longitude = parseInt(geo.lng);
 
-            var peoples = new Pile(geo.peoples);
+            piles[x] = new Pile(geo.peoples);
 
             // TODO make calculation selection a dynamic feature
-            var heights = peoples.calcHeights(Pile.heightFormat.JPS);
+            var heights = piles[x].calcHeights(Pile.heightFormat.JPS);
             // var heights = peoples.calcHeights(Pile.heightFormat.PROFESS);
 
             // TODO break this into more functions so things are more readily callable when user options are made available.
@@ -369,7 +387,7 @@ requirejs(['Cesium'], function(Cesium) {
             // Create Green Bar
             if (heights.g > 1) {
                 entities.add(new Cesium.Entity({
-                    id : "g" + ' index ' + x.toString(),
+                    id : "g " + x.toString(),
                     show : true,
                     position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g/2),
                     cylinder: {
@@ -388,7 +406,7 @@ requirejs(['Cesium'], function(Cesium) {
             // Create "SpringGreeen" bar
             if (heights.s > 1) {
                 entities.add(new Cesium.Entity({
-                    id : "s" + ' index ' + x.toString(),
+                    id : "s " + x.toString(),
                     show : true,
                     position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + (heights.s/2)),
                     cylinder: {
@@ -407,7 +425,7 @@ requirejs(['Cesium'], function(Cesium) {
             // Create Yellow bar
             if (heights.y > 1) {
                 entities.add(new Cesium.Entity({
-                    id : "y" + ' index ' + x.toString(),
+                    id : "y " + x.toString(),
                     show : true,
                     position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.s + (heights.y/2)),
                     cylinder: {
@@ -426,7 +444,7 @@ requirejs(['Cesium'], function(Cesium) {
             // Create Orange bar
             if (heights.o > 1) {
                 entities.add(new Cesium.Entity({
-                    id : "o" + ' index ' + x.toString(),
+                    id : "o " + x.toString(),
                     show : true,
                     position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.s + heights.y + (heights.o/2)),
                     cylinder: {
@@ -445,7 +463,8 @@ requirejs(['Cesium'], function(Cesium) {
             // Create Red bar
             if (heights.r > 1) {
                 entities.add(new Cesium.Entity({
-                    id : "r" + ' index ' + x.toString(),
+                    id : "r " + x.toString(),
+                    description: "this is a desc",
                     show : true,
                     position: Cesium.Cartesian3.fromDegrees(longitude, latitude, heights.g + heights.s + heights.y + heights.o + (heights.r/2)),
                     cylinder: {
@@ -492,17 +511,17 @@ requirejs(['Cesium'], function(Cesium) {
 //Create a Viewer instances and add the DataSource.
     var viewer = new Cesium.Viewer('cesiumContainer', {
         animation : false,
-        timeline : false,
+        baseLayerPicker : false,
+        fullscreenButton: false, // wil be manually created later, to put it into the toolbar
         geocoder : false,
+        infoBox: true,
         navigationInstructionsInitiallyVisible: false,
         imageryProvider: new Cesium.BingMapsImageryProvider({
             url : '//dev.virtualearth.net'
         }),
         skyAtmosphere: false,
         skyBox: false,
-        baseLayerPicker : false,
-        infoBox: true,
-        fullscreenButton: false,
+        timeline : false,
         scene: {
             globe: {
                 enableLighting: true
@@ -511,6 +530,35 @@ requirejs(['Cesium'], function(Cesium) {
     });
 
     viewer.infoBox.frame.sandbox = "allow-same-origin allow-top-navigation allow-pointer-lock allow-popups allow-forms allow-scripts";
+
+    // Prevent camera from getting locked to entity via double-click
+    viewer.cesiumWidget.screenSpaceEventHandler.setInputAction(function() {}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+
+    // make selections switch to the intended entity, instead of the actually-clicked entity.
+    viewer.cesiumWidget.screenSpaceEventHandler.setInputAction(function(movement) {
+        var clickedOn = viewer.scene.pick(movement.position),
+            clickedEntity = (Cesium.defined(clickedOn)) ? clickedOn.id : undefined;
+        if (Cesium.defined(clickedEntity) && Cesium.defined(clickedEntity.cylinder)) {
+
+            //TODO select the representative entity here.
+            viewer.selectedEntity = handleSelection(clickedEntity);
+
+            // clickedEntity.cylinder.material = Cesium.Color.WHITE.withAlpha(0.9);
+        } else {
+            viewer.selectedEntity = undefined;
+        }
+    }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+    // var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+    // handler.setInputAction(function(movement) {
+    //     var pickedPrimitive = viewer.scene.pick(movement.endPosition);
+    //     var pickedEntity = (Cesium.defined(pickedPrimitive)) ? pickedPrimitive.id : undefined;
+    //     // Highlight the currently picked entity
+    //     if (Cesium.defined(pickedEntity) && Cesium.defined(pickedEntity.billboard)) {
+    //         pickedEntity.billboard.scale = 2.0;
+    //         pickedEntity.billboard.color = Cesium.Color.ORANGERED;
+    //     }
+    // }, Cesium.ScreenSpaceEventType.MOUSE_MOVE);
 
     viewer.scene.globe.enableLighting = true;
 
@@ -549,4 +597,32 @@ requirejs(['Cesium'], function(Cesium) {
         nasaCredit = new Cesium.Credit('NASA Socioeconomic Data and Applications Center (SEDAC)', 'assets/nasa-logo.svg', 'http://sedac.ciesin.columbia.edu/data/collection/gpw-v4');
     viewer.scene.frameState.creditDisplay.addDefaultCredit(jpCredit);
     viewer.scene.frameState.creditDisplay.addDefaultCredit(nasaCredit);
+
+
+    var describedEntities = [],
+        now = Cesium.JulianDate.now(),
+        piles = [];
+
+    function handleSelection(selectedEntity) {
+        var pileId = parseInt(selectedEntity.id.split(' ', 2)[1]);
+
+        if (describedEntities[pileId] === undefined) {
+            var position = selectedEntity.position.getValue(now);
+            position = Cesium.Cartographic.fromCartesian(position);
+            describedEntities[pileId] = new Cesium.Entity({
+                id : "DE " + pileId.toString(),
+                show : true,
+                position: Cesium.Cartesian3.fromRadians(position.longitude, position.latitude, 0),
+                seriesName : "DE"
+            });
+
+            describedEntities[pileId].description = "<i class='loading'>Loading...</i>";
+
+            piles[pileId].putDescription(describedEntities[pileId], 'description');
+        }
+
+        return describedEntities[pileId];
+    }
 });
+
+var v;
