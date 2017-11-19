@@ -5,13 +5,14 @@ var https = require('https');
 var _ = require('underscore');
 
 var grid = {};
+var countries = {};
 var nasaLoaded = false;
 
 var populationMargin = 1E7;
 
 
 function GridPoint() {
-    this.peoples = {};
+    this.villages = {};
 }
 GridPoint.prototype.getPopulation = function() {
     var sumPop = 0;
@@ -24,6 +25,7 @@ GridPoint.prototype.getPopulation = function() {
 
 function Village(csvObj) {
     this.peopleId = parseInt(csvObj.PeopleID3);
+    this.countryCode = csvObj.ROG3;
     this.jPScale = parseFloat(csvObj.JPScale);
     this.pctEvangel = parseFloat(csvObj.PercentEvangelical)*.01 || 0;
     this.pctAdherant = parseFloat(csvObj.PercentAdherents)*.01 || 0;
@@ -31,12 +33,26 @@ function Village(csvObj) {
     this.populationTotal = this.populationUnassigned;
     this.lat = parseFloat(csvObj.Latitude);
     this.lng = parseFloat(csvObj.Longitude);
+    this.nameLocal = csvObj.PeopNameInCountry;
+    this.primaryLanguageName = csvObj.PrimaryLanguageName;
+    this.primaryReligion = csvObj.PrimaryReligion;
+    this.leastReached = (csvObj.LeastReached === 'Y' ? 1 : 0);
+    this.ten40 = (csvObj['10_40Window'] === 'Y' ? 1 : 0);
 
+
+    if (countries[this.countryCode] === undefined) {
+        countries[this.countryCode] = csvObj.Ctry
+    }
 }
 Object.defineProperties(Village.prototype, {
     peopleIdStr : {
         get : function() {
             return this.peopleId.toString();
+        }
+    },
+    villageIdStr : {
+        get: function() {
+            return this.countryCode + this.peopleIdStr;
         }
     }
 });
@@ -44,36 +60,39 @@ Village.prototype.assignToGrid = function() {
     var lat = this.lat,
         lng = this.lng;
 
+    if (isNaN(lat) || isNaN(lng))
+        return false;
+
     var remaining = this.assignToPile(Math.round(lat/2) * 2, Math.round(lng/2) * 2);
 
     if (remaining <= 0) {
         return;
     }
     if(_.find(this.listPeripheralZones(lat, lng, 10), function(zone, i) {
-            if (this.assignToPile(zone.lat, zone.lng) == 0) {
+            if (this.assignToPile(zone.lat, zone.lng) === 0) {
                 return true;
             }
-        }, this) != undefined) return;
+        }, this) !== undefined) return;
 
     if(_.find(this.listPeripheralZones(lat, lng, 30), function(zone, i) {
-            if (this.assignToPile(zone.lat, zone.lng) == 0) {
+            if (this.assignToPile(zone.lat, zone.lng) === 0) {
                 return true;
             }
-        }, this) != undefined) return;
+        }, this) !== undefined) return;
 
     if(_.find(this.listPeripheralZones(lat, lng, 90), function(zone) {
-            if (this.assignToPile(zone.lat, zone.lng) == 0) {
+            if (this.assignToPile(zone.lat, zone.lng) === 0) {
                 return true;
             }
-        }, this) != undefined) return;
+        }, this) !== undefined) return;
 
     if(_.find(this.listPeripheralZones(lat, lng, 180), function(zone) {
-            if (this.assignToPile(zone.lat, zone.lng) == 0) {
+            if (this.assignToPile(zone.lat, zone.lng) === 0) {
                 return true;
             }
-        }, this) != undefined) return;
+        }, this) !== undefined) return;
 
-    console.log("-> people group ", this.peopleIdStr, " not fully assigned. ", this.populationUnassigned, "unassigned of", this.populationTotal);
+    console.log("-> village #", this.villageIdStr, " not fully assigned. ", this.populationUnassigned, "unassigned of", this.populationTotal);
 
 };
 Village.prototype.listPeripheralZones = function(lat, lng, degrees) {
@@ -120,30 +139,47 @@ Village.prototype.assignToPile = function(lat, lng) {
     this.populationUnassigned = this.populationUnassigned - assignable;
     grid[lat][lng].emptyPop = grid[lat][lng].emptyPop - assignable;
 
-    if (typeof grid[lat][lng].peoples[this.peopleIdStr]  != 'undefined') {
+    // console.log("Assigning " + this.peopleIdStr + " of " + this.countryCode);
+
+    if (grid[lat][lng].villages[this.villageIdStr] !== undefined) {
     // Another country of this people group is already in this position.  Merge.  (Common among small countries, like SE Asia.)
 
-        var peopleObj = grid[lat][lng].peoples[this.peopleIdStr];
+        // console.log(grid[lat][lng].villages[this.villageIdStr]);
 
-        if (peopleObj.pop < assignable && peopleObj.jps != this.jPScale) {
-            peopleObj.jps = this.jPScale;
-        }
+        console.log("THIS SHOULD NEVER HAPPEN.  " + this.villageIdStr + "  " + this.peopleIdStr);
 
-        peopleObj.adh = (peopleObj.adh * peopleObj.pop + this.pctAdherant * assignable) / (peopleObj.pop + assignable);
-        peopleObj.evn = (peopleObj.evn * peopleObj.pop + this.pctEvangel * assignable) / (peopleObj.pop + assignable);
+        // var peopleObj = grid[lat][lng].villages[this.villageIdStr];
+        //
+        // if (peopleObj.pop < assignable && peopleObj.jps !== this.jPScale) {
+        //     peopleObj.jps = this.jPScale;
+        // }
+        //
+        // peopleObj.adh = (peopleObj.adh * peopleObj.pop + this.pctAdherant * assignable) / (peopleObj.pop + assignable);
+        // peopleObj.evn = (peopleObj.evn * peopleObj.pop + this.pctEvangel * assignable) / (peopleObj.pop + assignable);
 
-        peopleObj.pop += assignable;
+        // peopleObj.pop += assignable;
 
     } else {
-        grid[lat][lng].peoples[this.peopleIdStr] = {
+        var evangelicals = Math.round(this.pctEvangel * assignable);
+        grid[lat][lng].villages[this.villageIdStr] = {
             pop: assignable,
-            adh: this.pctAdherant,
-            evn: this.pctEvangel,
+            adh: Math.max(Math.round(this.pctAdherant * assignable) - evangelicals, 0),
+            evn: evangelicals,
             jps: this.jPScale
         };
     }
 
     return this.populationUnassigned;
+};
+
+Village.prototype.getDetails = function() {
+    return {
+        nameLcl: this.nameLocal,
+        pLang: this.primaryLanguageName,
+        pRlgn: this.primaryReligion,
+        LR: this.leastReached,
+        ten40: this.ten40
+    }
 };
 
 
@@ -238,9 +274,18 @@ function sortAndFilterJP(data) {
 
     console.log("Adjusted Nasa data to (nearly) match sum of Joshua Project data.");
 
-    console.log("Assigning villages to grid...");
+    console.log("Assigning villages to grid and saving village JSON files...");
     _.each(villages, function(v) {
         v.assignToGrid();
+
+        if (fs.existsSync('v/' + v.villageIdStr + '.json'))
+            fs.unlinkSync('v/' + v.villageIdStr + '.json');
+
+        if (!fs.existsSync('v/'))
+            fs.mkdirSync('v');
+
+        // console.log("Writing " + v.villageIdStr);
+        fs.writeFileSync('v/' + v.villageIdStr + '.json', JSON.stringify(v.getDetails()));
     });
     console.log("...done.");
 
@@ -250,11 +295,11 @@ function sortAndFilterJP(data) {
         _.each(row, function(cell, lng) {
             if (lng !== "Lat") {
                 popHolesRemaining += cell.emptyPop;
-                if (!_.isEmpty(cell.peoples)) {
+                if (!_.isEmpty(cell.villages)) {
                     gridSubset.push({
                         lat: parseInt(lat),
                         lng: parseInt(lng),
-                        peoples: cell.peoples
+                        v: cell.villages
                     });
                 }
             }
@@ -262,9 +307,23 @@ function sortAndFilterJP(data) {
     });
     console.log("Population holes remaining:",  popHolesRemaining);
 
-    fs.unlinkSync('geo.json');
 
-    fs.writeFile("geo.json", JSON.stringify(gridSubset), function(err){
+    // Some manual edits for the list of countries:
+    countries.KN = "North Korea (DPRK)";
+    countries.KS = "South Korea (ROK)";
+    countries.CG = "Democratic Republic of the Congo";
+    countries.CF = "Republic of the Congo";
+
+
+    if (fs.existsSync('geo.json'))
+        fs.unlinkSync('geo.json');
+
+    fs.writeFile("geo.json", JSON.stringify(
+        {
+            grid: gridSubset,
+            ctry: countries
+        }
+    ), function(err){
         if(err){
             console.log(err);
         } else {
@@ -288,7 +347,7 @@ function nasaGridify(data) {
                 var pop = parseInt(cell);
                 grid[lat][long] = {
                     emptyPop: pop,
-                    peoples: {}
+                    villages: {}
                 };
                 nasaPopSum += pop;
             }

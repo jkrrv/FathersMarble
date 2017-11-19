@@ -1,0 +1,66 @@
+
+
+
+/* colorBars */
+span.colorBar {
+  display:block;
+  height:1em;
+  width:100%;
+  top:0;
+  position:absolute;
+  white-space: nowrap;
+  span {
+    display:inline-block;
+    overflow:hidden;
+    //position:absolute;
+    text-align:center;
+    font-size: .8em;
+    height: 1.3em;
+    color: rgba(255, 255, 255, 0.5);
+    border: solid rgba(0, 0, 0, 0.5);
+    border-width: 1px 0 1px 1px;
+    box-sizing: border-box;
+  }
+
+  *:last-child {
+    border-width: 1px;
+  }
+  .colorBar-color-r {
+    background-color: #900;
+  }
+  .colorBar-color-o {
+    background-color: #950;
+  }
+  .colorBar-color-y {
+    background-color: #990;
+  }
+  .colorBar-color-s {
+    background-color: #590;
+  }
+  .colorBar-color-g {
+    background-color: #090;
+  }
+}
+
+
+/* General box stuff */
+div.cesium-infoBox-description {
+  margin:0;
+}
+
+div.cesium-infoBox-description table {
+  color:#eee;
+  font-size: 1em;
+
+  & td {
+    position:relative;
+    width:100%;
+  }
+  & th {
+    font-weight: normal;
+  }
+}
+
+.help-cursor {
+  cursor: help;
+}

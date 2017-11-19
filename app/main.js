@@ -12,14 +12,97 @@ require.config({
 requirejs(['Cesium'], function(Cesium) {
 
     /**
-     * The Pile class represents the collection of all peoples in a given place.
+     * The PileVillage represents the portion of a Village within a Pile.
      *
-     * @param geoPeoples
+     * @class
+     * @param villageId
+     * @param geoVillage
      * @constructor
      */
-    var Pile = function(geoPeoples) {
-        this.peoples = geoPeoples;
+    var PileVillage = function(villageId, geoVillage) {
+        this.countryCode = villageId.substr(0, 2);
+        this.villageId = villageId;
+        this.peopleId = villageId.substr(2);
+        this.population = geoVillage.pop;
+        this.jpScale = geoVillage.jps;
+        this.adherants = geoVillage.adh;
+        this.evangelicals = geoVillage.evn;
     };
+    Object.defineProperties(PileVillage.prototype, {
+        v : {
+            get : function() {
+                return Village.getVillage(this);
+            }
+        }
+    });
+
+    /**
+     * The Pile class represents a vertical bar on the earth.
+     *
+     * @param geoVillages
+     * @constructor
+     */
+    var Pile = function(geoVillages) {
+        /** @property {PileVillage[]} villages */
+        this.pileVillages = [];
+        this._pileVillagesByCountry = [];
+
+        for (const vi in geoVillages) {
+            if (!geoVillages.hasOwnProperty(vi))
+                continue;
+
+            this.pileVillages[vi] = new PileVillage(vi, geoVillages[vi]);
+        }
+    };
+
+    Pile._countries = {};
+    Pile.setCountries = function(countryObject) {
+        Pile._countries = countryObject;
+    };
+    Pile.getCountry = function(countryCode) {
+        return Pile._countries[countryCode];
+    };
+
+    /**
+     *
+     * @param {string|undefined} countryCode The code of the country to return if only one is desired.
+     * @returns {PileVillage|PileVillage[]}
+     */
+    Pile.prototype.getPileVillagesByCountry = function(countryCode) {
+        if (this._pileVillagesByCountry.length === 0) {
+            this._pileVillagesByCountry.length = 0;
+            for (const vi in this.pileVillages) {
+                if (this._pileVillagesByCountry[this.pileVillages[vi].countryCode] === undefined) {
+                    this._pileVillagesByCountry[this.pileVillages[vi].countryCode] = [];
+                    this._pileVillagesByCountry.length++;
+                }
+
+                this._pileVillagesByCountry[this.pileVillages[vi].countryCode].push(this.pileVillages[vi]);
+            }
+        }
+        if (countryCode === undefined)
+            return this._pileVillagesByCountry;
+        if (this._pileVillagesByCountry[countryCode] === undefined)
+            return [];
+        return this._pileVillagesByCountry[countryCode];
+    };
+
+
+    /**
+     *
+     * @returns {string}
+     */
+    Pile.prototype.getName = function() {
+        var vsByC = this.getPileVillagesByCountry(),
+            cs = [];
+        for (const cc in vsByC) {
+            if (!vsByC.hasOwnProperty(cc))
+                continue;
+            cs.push(Pile.getCountry(cc));
+        }
+        return cs.join(', ');
+    };
+
 
     /**
      * Constants to specify the means by which the height should be calculated.
@@ -31,6 +114,21 @@ requirejs(['Cesium'], function(Cesium) {
 
         /** PROFESS: Professed faith : A classification based on reported profession.  Evangelical, Christian, Non-Christian */
         PROFESS: 2
+    };
+
+    Pile.colorMeanings = {
+        1: {
+            'r' : "Unreached",
+            'o' : "Minimally Reached",
+            'y' : "Superficially Reached",
+            's' : "Partially Reached",
+            'g' : "Significantly Reached"
+        },
+        2: {
+            'r' : "Non-Christian",
+            'y' : "Christian",
+            'g' : "Evangelical"
+        }
     };
 
     /**
@@ -49,67 +147,242 @@ requirejs(['Cesium'], function(Cesium) {
             sum: 0
         };
 
-        var index, people;
+        var index, v;
         switch(format) {
             case Pile.heightFormat.JPS : {
-                for(index in this.peoples) {
-                    if (this.peoples.hasOwnProperty(index)) {
-                        people = this.peoples[index];
+                for(index in this.pileVillages) {
+                    if (this.pileVillages.hasOwnProperty(index)) {
+                        v = this.pileVillages[index];
 
-                        if (people.jps < 2) {
-                            out.r += people.pop;
-                        } else if (people.jps < 3) {
-                            out.o += people.pop;
-                        } else if (people.jps < 4) {
-                            out.y += people.pop;
-                        } else if (people.jps < 5) {
-                            out.s += people.pop;
+                        if (v.jpScale < 2) {
+                            out.r += v.population;
+                        } else if (v.jpScale < 3) {
+                            out.o += v.population;
+                        } else if (v.jpScale < 4) {
+                            out.y += v.population;
+                        } else if (v.jpScale < 5) {
+                            out.s += v.population;
                         } else {
-                            out.g += people.pop;
+                            out.g += v.population;
                         }
                     }
                 }
             } break;
             case Pile.heightFormat.PROFESS : {
-                for(index in this.peoples) {
-                    if (this.peoples.hasOwnProperty(index)) {
-                        people = this.peoples[index];
-                        out.g += (people.evn * people.pop);
-                        out.y += Math.max((people.adh - people.evn) * people.pop, 0);
-                        out.r += (1 - people.adh) * people.pop;
-
-                        if (people.jps < 2) {
-                            out.r += people.pop;
-                        } else if (people.jps < 3) {
-                            out.y += people.pop;
-                        } else {
-                            out.g += people.pop;
-                        }
+                for(index in this.pileVillages) {
+                    if (this.pileVillages.hasOwnProperty(index)) {
+                        v = this.pileVillages[index];
+                        out.g += v.evangelicals;
+                        out.y += v.adherants;
+                        out.r += v.population - v.adherants;
                     }
                 }
             } break;
         }
-        out.sum = out.r + out.y + out.g;
+        out.sum = out.r + out.o + out.y + out.s + out.g;
         return out;
     };
 
 
-    Pile.prototype.putDescription = function(whereToPutDescription, property) {
-        console.log(this.peoples);
+    Pile.prototype.calcDescWidths = function(format) {
+        var out = this.calcHeights(format),
+            sum = 0;
 
-        var description = document.createDocumentFragment();
+        for (const color in out) {
+            if (color === 'sum')
+                continue;
 
+            var current = Math.min(Math.round(out[color] / out.sum * 100), 100-sum);
+            sum += current;
 
-        for (const peopleId in this.peoples) {
-            if (this.peoples.hasOwnProperty(peopleId)) {
-                var peopleDiv = document.createElement('div');
-                peopleDiv.innerHTML = "<h2>" + peopleId + "</h2>";
-                description.appendChild(peopleDiv);
+            out[color] = current.toString() + "%";
+        }
+
+        return out;
+    };
+
+    Pile.prototype.getColorBar = function(format, whereToPut) {
+        var colorSizes = this.calcDescWidths(format),
+            colorOrder = ["g", "s", "y", "o", "r"],
+            bar = viewer.infoBox.frame.contentDocument.createElement('span');
+            bar.classList.add("colorBar");
+
+        for (var ci = 0; ci < colorOrder.length; ci++) {
+            var c = colorOrder[ci],
+                span = viewer.infoBox.frame.contentDocument.createElement('span');
+
+            if (colorSizes[c] !== "0%") {
+
+                span.classList.add("colorBar-color-" + c);
+                span.classList.add("colorBar-format-" + format);
+                span.style.width = colorSizes[c];
+
+                span.innerHTML = Pile.colorMeanings[format][c];
+                span.setAttribute('title', Pile.colorMeanings[format][c]);
+
+                bar.appendChild(span);
             }
         }
 
+        if (whereToPut !== undefined)
+            whereToPut.appendChild(bar);
 
-        whereToPutDescription.description = description.innerHTML;
+        return bar;
+
+    };
+
+    Pile.prototype.putDescription = function(whereToPutDescription) {
+        var description = viewer.infoBox.frame.contentDocument.createElement('div');
+
+        this.appendHeaderTable(description);
+
+        var countries = this.getPileVillagesByCountry();
+
+        for (const co in countries) {
+            var target;
+            if (countries.length > 1) {
+                target = viewer.infoBox.frame.contentDocument.createElement('div');
+                target.classList.add("country");
+                target.innerHTML = "<h2>" + Pile.getCountry(co) + "</h2>";
+                description.appendChild(target);
+            } else {
+                target = description;
+            }
+
+            for (var pvi in countries[co]) {
+                countries[co][pvi].v.putDescription(target);
+            }
+        }
+
+        whereToPutDescription.description = description.innerHTML; // TODO this needs to be either replaced or re-invoked elsewhere so the descriptions actually update after XHR data is loaded.
+
+        function peoplePutDescription(data, elementToPutInto) {
+            elementToPutInto.innerHTML = "<p>" + data.name + "</p>";
+
+            whereToPutDescription.description = description.innerHTML;
+        }
+    };
+
+    Pile.prototype.appendHeaderTable = function(toWhat) {
+        var headerTable = viewer.infoBox.frame.contentDocument.createElement('table'),
+            colorBars = [
+                {
+                    label: "Progress:",
+                    format: Pile.heightFormat.JPS,
+                    title: "The Progress Scale is an estimate of the progress of Church Planing among a people or peoples."
+                },
+                {
+                    label: "Profession:",
+                    format: Pile.heightFormat.PROFESS
+                }
+            ];
+
+        for (const cbi in colorBars) {
+            if (!colorBars.hasOwnProperty(cbi))
+                continue;
+
+            var row = viewer.infoBox.frame.contentDocument.createElement('tr'),
+                labelCell = viewer.infoBox.frame.contentDocument.createElement('th'),
+                barCell = viewer.infoBox.frame.contentDocument.createElement('td');
+
+            // label cell
+            row.appendChild(labelCell);
+            labelCell.innerHTML = colorBars[cbi].label;
+
+            // title for label
+            if (colorBars[cbi].title !== undefined) {
+                labelCell.setAttribute('title', colorBars[cbi].title);
+                labelCell.classList.add('help-cursor');
+            }
+
+            // color bar cell
+            row.appendChild(barCell);
+            this.getColorBar(colorBars[cbi].format, barCell);
+
+            headerTable.appendChild(row);
+        }
+
+        toWhat.appendChild(headerTable);
+    };
+
+
+    function Village(villageId) {
+        if (Village._villages[villageId] !== undefined) {
+            throw new Error("Villages must only be instantiated via the Village.getVillage method. ");
+        }
+
+        this.id = villageId;
+        this.description = viewer.infoBox.frame.contentDocument.createElement('div');
+
+        Village._villages[villageId] = this;
+    }
+    Object.defineProperties(Village.prototype, {
+        joshuaProjectURL : {
+            get : function() {
+                return this.peopleId.toString(); // TODO fix this.
+            }
+        }
+    });
+
+    Village._villages = {};
+    Village._villagesQueuedForXHR = [];
+    Village._xhrTimeout = null;
+
+    Village.getVillage = function(pileVillageObjectOrVillageId) {
+        var villageId = null;
+        if (typeof pileVillageObjectOrVillageId === 'object')
+            villageId = pileVillageObjectOrVillageId.villageId;
+        else
+            villageId = pileVillageObjectOrVillageId;
+        if (Village._villages[villageId] === undefined)
+            return new Village(villageId);
+        return Village._villages[villageId]
+    };
+
+    Village.prototype.putDescription = function(whereToPutDescription) {
+        if (this.description.innerHTML === '')
+            this.queueLoadingOfVillageData();
+        whereToPutDescription.appendChild(this.description);
+    };
+
+
+    Village.prototype.queueLoadingOfVillageData = function() {
+        if (Village._villagesQueuedForXHR.indexOf(this.id) < 0)
+            Village._villagesQueuedForXHR.push(this.id);
+
+        if (Village._xhrTimeout !== null) {
+            clearTimeout(Village._xhrTimeout);
+        }
+        Village._xhrTimeout = setTimeout(Village.sendXHR, 50);
+
+    };
+
+
+    Village.sendXHR = function() {
+        var villages = Village._villagesQueuedForXHR,
+            XHR = new XMLHttpRequest();
+        Village._villagesQueuedForXHR = [];
+
+        if (villages.length < 1)
+            return;
+
+        villages = villages.join(',');
+
+        XHR.addEventListener("load", Village.xhrHandler);
+        XHR.open("GET", "data/index.php?v=" + villages);
+        XHR.send();
+    };
+
+    Village.xhrHandler = function() {
+        var data = JSON.parse(this.responseText);
+        for (const vid in data) {
+            Village.getVillage(vid).xhrHandler(data[vid]);
+        }
+    };
+
+    Village.prototype.xhrHandler = function(data) {
+        this.description.innerHTML = data.nameLcl; // TODO replace with a description aseembler.
+        console.log(this);
     };
 
 
@@ -187,7 +460,7 @@ requirejs(['Cesium'], function(Cesium) {
         },
         /**
          * Gets an event that will be raised when the underlying data changes.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {Event}
          */
         changedEvent : {
@@ -198,7 +471,7 @@ requirejs(['Cesium'], function(Cesium) {
         /**
          * Gets an event that will be raised if an error is encountered during
          * processing.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {Event}
          */
         errorEvent : {
@@ -209,7 +482,7 @@ requirejs(['Cesium'], function(Cesium) {
         /**
          * Gets an event that will be raised when the data source either starts or
          * stops loading.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {Event}
          */
         loadingEvent : {
@@ -220,7 +493,7 @@ requirejs(['Cesium'], function(Cesium) {
         //These properties are specific to this DataSource.
         /**
          * Gets the array of series names.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {String[]}
          */
         seriesNames : {
@@ -255,7 +528,7 @@ requirejs(['Cesium'], function(Cesium) {
         },
         /**
          * Gets or sets the scale factor applied to the height of each line.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {Number}
          */
         heightScale : {
@@ -271,7 +544,7 @@ requirejs(['Cesium'], function(Cesium) {
         },
         /**
          * Gets whether or not this data source should be displayed.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {Boolean}
          */
         show : {
@@ -284,7 +557,7 @@ requirejs(['Cesium'], function(Cesium) {
         },
         /**
          * Gets or sets the clustering options for this data source. This object can be shared between multiple data sources.
-         * @memberof WebGLGlobeDataSource.prototype
+         * @memberOf WebGLGlobeDataSource.prototype
          * @type {EntityCluster}
          */
         clustering : {
@@ -359,20 +632,22 @@ requirejs(['Cesium'], function(Cesium) {
         entities.suspendEvents();
         entities.removeAll();
 
+        Pile.setCountries(data.ctry);
+        var gridData = data.grid;
+
         var h=0; // count the number of cylinders generated.
 
         // Loop over each geographic point
-        for (var x = 0; x < data.length; x++) {
+        for (var x = 0; x < gridData.length; x++) {
 
-            var geo = data[x];
+            var geo = gridData[x];
             var latitude = parseInt(geo.lat);
             var longitude = parseInt(geo.lng);
 
-            piles[x] = new Pile(geo.peoples);
+            piles[x] = new Pile(geo.v);
 
             // TODO make calculation selection a dynamic feature
             var heights = piles[x].calcHeights(Pile.heightFormat.JPS);
-            // var heights = peoples.calcHeights(Pile.heightFormat.PROFESS);
 
             // TODO break this into more functions so things are more readily callable when user options are made available.
 
@@ -530,6 +805,7 @@ requirejs(['Cesium'], function(Cesium) {
     });
 
     viewer.infoBox.frame.sandbox = "allow-same-origin allow-top-navigation allow-pointer-lock allow-popups allow-forms allow-scripts";
+    viewer.infoBox.viewModel.enableCamera = false;
 
     // Prevent camera from getting locked to entity via double-click
     viewer.cesiumWidget.screenSpaceEventHandler.setInputAction(function() {}, Cesium.ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
@@ -585,6 +861,17 @@ requirejs(['Cesium'], function(Cesium) {
     //     // layer.brightness = 0.8;
     // }
 
+    // Load Infobox css
+    viewer.infoBox.frame.addEventListener('load', function () {
+        var cssLink = viewer.infoBox.frame.contentDocument.createElement('link');
+        cssLink.href = 'infobox.css';
+        cssLink.rel = 'stylesheet';
+        cssLink.type = 'text/css';
+        viewer.infoBox.frame.contentDocument.head.appendChild(cssLink);
+    }, false);
+
+
+    // Load Data Source
     viewer.dataSources.add(dataSource).then(function() {
         document.getElementById('loadingOverlay').style.opacity = '0';
         setTimeout(function () {
@@ -610,7 +897,8 @@ requirejs(['Cesium'], function(Cesium) {
             var position = selectedEntity.position.getValue(now);
             position = Cesium.Cartographic.fromCartesian(position);
             describedEntities[pileId] = new Cesium.Entity({
-                id : "DE " + pileId.toString(),
+                id : "DE-" + pileId.toString(),
+                name: piles[pileId].getName(),
                 show : true,
                 position: Cesium.Cartesian3.fromRadians(position.longitude, position.latitude, 0),
                 seriesName : "DE"
@@ -618,11 +906,11 @@ requirejs(['Cesium'], function(Cesium) {
 
             describedEntities[pileId].description = "<i class='loading'>Loading...</i>";
 
-            piles[pileId].putDescription(describedEntities[pileId], 'description');
+
         }
+
+        piles[pileId].putDescription(describedEntities[pileId]);
 
         return describedEntities[pileId];
     }
 });
-
-var v;
