@@ -276,6 +276,8 @@ function sortAndFilterJP(data) {
 
     console.log("Assigning villages to grid and saving village JSON files...");
     _.each(villages, function(v) {
+        console.log("Village " + v.villageIdStr + "...");
+
         v.assignToGrid();
 
         if (fs.existsSync('v/' + v.villageIdStr + '.json'))
@@ -296,10 +298,24 @@ function sortAndFilterJP(data) {
             if (lng !== "Lat") {
                 popHolesRemaining += cell.emptyPop;
                 if (!_.isEmpty(cell.villages)) {
+
+                    // Sort villages within the pile so the bigger ones are first.  This appears to be the only way to maintain the order of the keys.
+                    var villagesSortedKeys = _.sortBy(cell.villages, function(v, vid){
+                        v.id = vid;
+                        return -v.pop;
+                    });
+                    var villagesSorted = {};
+                    _.each(villagesSortedKeys, function(vsk) {
+                        var vid = vsk.id.toString();
+                        villagesSorted[vid] = cell.villages[vid];
+                        delete villagesSorted[vid].id;
+                    });
+
+
                     gridSubset.push({
                         lat: parseInt(lat),
                         lng: parseInt(lng),
-                        v: cell.villages
+                        v: villagesSorted
                     });
                 }
             }
