@@ -42,10 +42,11 @@ requirejs(['Cesium'], function(Cesium) {
      * @param geoVillages
      * @constructor
      */
-    var Pile = function(geoVillages) {
+    var Pile = function(geoVillages, pileId) {
         /** @property {PileVillage[]} villages */
         this.pileVillages = [];
         this._pileVillagesByCountry = [];
+        this._pileId = pileId;
 
         for (const vi in geoVillages) {
             if (!geoVillages.hasOwnProperty(vi))
@@ -65,7 +66,7 @@ requirejs(['Cesium'], function(Cesium) {
 
     /**
      *
-     * @param {string|undefined} countryCode The code of the country to return if only one is desired.
+     * @param {string} [countryCode=null] The code of the country to return if only one is desired.
      * @returns {PileVillage|PileVillage[]}
      */
     Pile.prototype.getPileVillagesByCountry = function(countryCode) {
@@ -231,7 +232,56 @@ requirejs(['Cesium'], function(Cesium) {
 
     };
 
-    Pile.prototype.putDescription = function(whereToPutDescription) {
+
+    /**
+     * The Currently-selected Pile.
+     * @type {Pile}
+     * @private
+     */
+    Pile._currentPile = null;
+
+
+    Pile.handleSelection = function(selectedEntity) {
+        if (selectedEntity === null) {
+            Pile._currentPile = null;
+            return null;
+        }
+
+        var pileId = parseInt(selectedEntity.id.split(' ', 2)[1]);
+
+        if (describedEntities[pileId] === undefined) {
+            var position = selectedEntity.position.getValue(now);
+            position = Cesium.Cartographic.fromCartesian(position);
+            describedEntities[pileId] = new Cesium.Entity({
+                id : "DE-" + pileId.toString(),
+                name: piles[pileId].getName(),
+                show : true,
+                position: Cesium.Cartesian3.fromRadians(position.longitude, position.latitude, 0),
+                seriesName : "DE"
+            });
+
+            describedEntities[pileId].description = "<i class='loading'>Loading...</i>";
+
+
+        }
+
+        Pile._currentPile = piles[pileId];
+
+        Pile.updateCurrentPileDescription();
+
+        return describedEntities[pileId];
+    };
+
+
+    Pile.updateCurrentPileDescription = function() {
+        if (Pile._currentPile === null)
+            return false;
+
+        Pile._currentPile.updateDescription();
+    };
+
+
+    Pile.prototype.updateDescription = function() {
         var description = viewer.infoBox.frame.contentDocument.createElement('div');
 
         this.appendHeaderTable(description);
@@ -254,13 +304,7 @@ requirejs(['Cesium'], function(Cesium) {
             }
         }
 
-        whereToPutDescription.description = description.innerHTML; // TODO this needs to be either replaced or re-invoked elsewhere so the descriptions actually update after XHR data is loaded.
-
-        function peoplePutDescription(data, elementToPutInto) {
-            elementToPutInto.innerHTML = "<p>" + data.name + "</p>";
-
-            whereToPutDescription.description = description.innerHTML;
-        }
+        describedEntities[this._pileId].description = description.innerHTML;
     };
 
     Pile.prototype.appendHeaderTable = function(toWhat) {
@@ -378,11 +422,11 @@ requirejs(['Cesium'], function(Cesium) {
         for (const vid in data) {
             Village.getVillage(vid).xhrHandler(data[vid]);
         }
+        Pile.updateCurrentPileDescription();
     };
 
     Village.prototype.xhrHandler = function(data) {
-        this.description.innerHTML = data.nameLcl; // TODO replace with a description aseembler.
-        console.log(this);
+        this.description.innerHTML = data.nameLcl; // TODO replace with a description assembler.
     };
 
 
@@ -644,7 +688,7 @@ requirejs(['Cesium'], function(Cesium) {
             var latitude = parseInt(geo.lat);
             var longitude = parseInt(geo.lng);
 
-            piles[x] = new Pile(geo.v);
+            piles[x] = new Pile(geo.v, x);
 
             // TODO make calculation selection a dynamic feature
             var heights = piles[x].calcHeights(Pile.heightFormat.JPS);
@@ -816,12 +860,12 @@ requirejs(['Cesium'], function(Cesium) {
             clickedEntity = (Cesium.defined(clickedOn)) ? clickedOn.id : undefined;
         if (Cesium.defined(clickedEntity) && Cesium.defined(clickedEntity.cylinder)) {
 
-            //TODO select the representative entity here.
-            viewer.selectedEntity = handleSelection(clickedEntity);
+            viewer.selectedEntity = Pile.handleSelection(clickedEntity);
 
             // clickedEntity.cylinder.material = Cesium.Color.WHITE.withAlpha(0.9);
         } else {
             viewer.selectedEntity = undefined;
+            Pile.handleSelection(null);
         }
     }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
 
@@ -890,27 +934,4 @@ requirejs(['Cesium'], function(Cesium) {
         now = Cesium.JulianDate.now(),
         piles = [];
 
-    function handleSelection(selectedEntity) {
-        var pileId = parseInt(selectedEntity.id.split(' ', 2)[1]);
-
-        if (describedEntities[pileId] === undefined) {
-            var position = selectedEntity.position.getValue(now);
-            position = Cesium.Cartographic.fromCartesian(position);
-            describedEntities[pileId] = new Cesium.Entity({
-                id : "DE-" + pileId.toString(),
-                name: piles[pileId].getName(),
-                show : true,
-                position: Cesium.Cartesian3.fromRadians(position.longitude, position.latitude, 0),
-                seriesName : "DE"
-            });
-
-            describedEntities[pileId].description = "<i class='loading'>Loading...</i>";
-
-
-        }
-
-        piles[pileId].putDescription(describedEntities[pileId]);
-
-        return describedEntities[pileId];
-    }
 });
