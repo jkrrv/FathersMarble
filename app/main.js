@@ -413,7 +413,7 @@ requirejs(['Cesium'], function(Cesium) {
         villages = villages.join(',');
 
         XHR.addEventListener("load", Village.xhrHandler);
-        XHR.open("GET", "data/index.php?v=" + villages);
+        XHR.open("GET", "data/?v=" + villages);
         XHR.send();
     };
 

@@ -6,6 +6,7 @@ if (!isset($_GET['v'])) {
 
 $villages = explode(',', strtoupper($_GET['v']));
 
+header('Content-Type: application/json');
 echo "{";
 $first = true;
 foreach ($villages as $v) {
