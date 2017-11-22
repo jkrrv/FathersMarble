@@ -182,14 +182,24 @@ Village.prototype.getDetails = function() {
     }
 };
 
+const jpFileName = 'raw/JoshuaProject/AllPeoplesByCountry.csv';
+const jpDataUrl = 'https://joshuaproject.net/resources/datasets/1';
+
 
 /* JOSHUA PROJECT DATA DOWNLOAD/UPDATE */
 /* Download new Joshua Project data if it doesn't exist or is just old. */
-if (!fs.existsSync('raw/JoshuaProject/AllPeoplesByCountryListing.csv') ||
-    ((new Date()) - fs.statSync('raw/JoshuaProject/AllPeoplesByCountryListing.csv').mtime) > (86400*7)) {
+if (!fs.existsSync(jpFileName) ||
+    ((new Date()) - fs.statSync(jpFileName).mtime) > (86400*7)) {
 
-    var file = fs.createWriteStream('raw/JoshuaProject/AllPeoplesByCountryListing.csv');
-    https.get("https://joshuaproject.net/resources/datasets/1", function(response) {
+    https.get(jpDataUrl, function(response) {
+        if (response.statusCode !== 200) {
+            // handle server/request errors.
+            console.log("Joshua Project Download Attempt failed : " + response.statusMessage + " (" + response.statusCode + ")");
+            parseNasaData();
+            parseJPData();
+            return;
+        }
+        var file = fs.createWriteStream(jpFileName);
         response.pipe(file);
         response.on('end', function() {
             parseNasaData();
@@ -206,7 +216,7 @@ function parseJPData() {
     var mode = "init",
         columnHeadings = [],
         jpData = [];
-    fs.readFileSync('raw/JoshuaProject/AllPeoplesByCountryListing.csv').toString().split('\n').forEach(function (line) {
+    fs.readFileSync(jpFileName).toString().split('\n').forEach(function (line) {
         switch (mode) {
             case "init":
                 if (line.indexOf(',') !== -1) {
