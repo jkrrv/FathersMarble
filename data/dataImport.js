@@ -193,10 +193,12 @@ if (!fs.existsSync(jpFileName) ||
 
     https.get(jpDataUrl, function(response) {
         if (response.statusCode !== 200) {
-            // handle server/request errors.
+            // handle download errors.
             console.log("Joshua Project Download Attempt failed : " + response.statusMessage + " (" + response.statusCode + ")");
-            parseNasaData();
-            parseJPData();
+            if (fs.existsSync(jpFileName)) {
+                parseNasaData();
+                parseJPData();
+            }
             return;
         }
         var file = fs.createWriteStream(jpFileName);
