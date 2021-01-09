@@ -35,7 +35,11 @@ body {
   height: 100%;
   background: rgba(0,0,0,.5);
   transition: opacity 2s;
-  transition-delay:8s;
+
+  &.hidden {
+    opacity: 0;
+    pointer-events: none;
+  }
 }
 
 #loadingOverlay h1 {
@@ -44,6 +48,7 @@ body {
   top: 50%;
   color:#aaa;
   margin-top: -0.5em;
+  pointer-events: none;
 }
 
 #messageBar {

@@ -24,19 +24,14 @@ Over different versions of this project, the imagery used on the globe has come 
 
  - Bing Maps.  Licensed from Microsoft. 
  - Natural Earth II. Public Domain. 
- - NASA's Black Marble Imagery.  Original data courtesy NASA Earth Observatory and in the public domain; this iteration 
-  is graciously hosted by AGI. 
+ - NASA's Black Marble Imagery.  
   
 The particular copyrights that apply to the imagery actively in-use are listed at the bottom left of the application. 
  
-The graphics tool used here is [Cesium](http://cesiumjs.org), which is a really awesome mapping tool. 
-
-## License
-
-Wanna use this or create a derivative work based on it?  That's great!  Just follow the terms of our license, which is 
-the [GNU General Public License v3.0](https://choosealicense.com/licenses/gpl-3.0/). 
-
-Questions?  Ask [the contributors](https://github.com/jkrrv/FathersMarble/graphs/contributors). 
+The graphics tool used here is [Cesium](http://cesiumjs.org), which is a really awesome geospatial analysis tool that 
+goes way beyond mapping interesting things.  This display arrangement is substantially borrowed from their 
+[Custom Data Source Example](https://sandcastle.cesium.com/?src=Custom%20DataSource.html).  (Disclosure: I was an intern
+at [AGI](https://agi.com) back in the day before they spun off Cesium into its own.)
 
 ## Terminology
 
